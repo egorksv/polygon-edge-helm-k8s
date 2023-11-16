@@ -1,1 +1,11 @@
 *.iml
+*/.env
+*/node_modules
+*/cache
+*/.idea
+*/.vscode
+*/.DS_Store
+*/artifacts*
+volumes
+/.idea/
+helm/supernets/tbd

@@ -1,0 +1,76 @@
+{{- if .Values.validators.enabled }}
+{{- range $idx, $val := $.Values.validators.list }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $val }}
+  labels:
+    app: {{ $val }}
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ $val }}
+  template:
+    metadata:
+      {{- with $.Values.edge.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ $val }}
+    spec:
+      {{- with $.Values.edge.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml $.Values.edge.podSecurityContext | nindent 8 }}
+
+      containers:
+        - name: validator-{{ .}}
+          securityContext:
+            {{- toYaml $.Values.edge.securityContext | nindent 12 }}
+          image: "{{ $.Values.edge.image.repository }}:{{ $.Values.edge.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.edge.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml $.Values.edge.resources | nindent 12 }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command:
+            - sh
+            - -c
+            - |
+              # sleep 10000
+              polygon-edge server \
+                --data-dir {{ $.Values.edge.data }}/test-chain-{{ add $idx 1 }} \
+                --chain {{ $.Values.edge.data }}/genesis.json \
+                --grpc-address 0.0.0.0:10000 \
+                --libp2p 0.0.0.0:30303 --jsonrpc 0.0.0.0:10002 --seal --log-level DEBUG
+
+      volumes:
+        - name: polygon-edge-storage
+          persistentVolumeClaim:
+            claimName: polygon-edge-pvc
+      {{- with $.Values.edge.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.edge.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.edge.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  {{- end }}
+{{- end}}

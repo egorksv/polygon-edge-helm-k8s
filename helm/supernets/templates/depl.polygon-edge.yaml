@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "supernets.fullname" . }}-edge
+  labels:
+    {{- include "supernets.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.edge.autoscaling.enabled }}
+  replicas: {{ .Values.edge.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "supernets.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.edge.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "supernets.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.edge.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.edge.podSecurityContext | nindent 8 }}
+      initContainers:
+      {{- if .Values.edge.rebuild }}
+        - name: cleanup
+          image: {{ .Values.edge.initimage.repository }}:{{ .Values.edge.initimage.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.edge.initimage.pullPolicy }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command: [ 'sh', '-c',
+                     'rm -rf /home/edge/polygon/* && mkdir /home/edge/polygon/edge'
+          ]
+
+        - name: init-polybft-secrets
+          image: {{ .Values.edge.initimage.repository }}:{{ .Values.edge.initimage.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.edge.initimage.pullPolicy }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command: [ 'sh', '-c',
+            'polygon-edge polybft-secrets --insecure
+             --data-dir /home/edge/polygon/edge/test-chain- --num 4 --json > /home/edge/polygon/edge/secrets.json'
+          ]
+
+        - name: prepare-genesis-script
+          image: {{ .Values.edge.jqinitimage.repository }}:{{ .Values.edge.jqinitimage.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.edge.jqinitimage.pullPolicy }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command:
+            - sh
+            - -c
+            - |
+               {{ tpl (.Files.Get "scripts/prepare-genesis.sh") .  | nindent 16}}
+
+        - name: init-polybft-genesis
+          image: {{ .Values.edge.initimage.repository }}:{{ .Values.edge.initimage.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.edge.initimage.pullPolicy }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command: [ 'sh', '-c', '{{ .Values.edge.data }}/run-genesis.sh' ]
+{{/*          command: [ 'sh', '-c', 'sleep 10000' ]*/}}
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.edge.securityContext | nindent 12 }}
+          image: "{{ .Values.edge.image.repository }}:{{ .Values.edge.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.edge.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.edge.resources | nindent 12 }}
+          volumeMounts:
+            - name: polygon-edge-storage
+              mountPath: /home/edge/polygon
+          command: ['sh', '-c', 'sleep 99999']
+      volumes:
+        - name: polygon-edge-storage
+          persistentVolumeClaim:
+            claimName: polygon-edge-pvc
+      {{- with .Values.edge.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.edge.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.edge.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

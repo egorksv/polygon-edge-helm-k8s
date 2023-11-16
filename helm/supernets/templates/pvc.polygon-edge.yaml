@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: polygon-edge-pvc
+spec:
+  volumeName: polygon-edge-pv
+  storageClassName: "standard"
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: polygon-edge-pv
+spec:
+  storageClassName: "standard"
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "{{ .Values.geth.localStoragePath }}"
+    type: DirectoryOrCreate

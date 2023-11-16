@@ -68,8 +68,8 @@ spec:
             - name: polygon-edge-storage
               mountPath: /home/edge/polygon
           command: [ 'sh', '-c', '{{ .Values.edge.data }}/run-genesis.sh' ]
-{{/*          command: [ 'sh', '-c', 'sleep 10000' ]*/}}
         {{- end }}
+        -
       containers:
         - name: {{ .Chart.Name }}
           securityContext:

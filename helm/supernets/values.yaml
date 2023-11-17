@@ -12,12 +12,17 @@ token: {}
 
 
 validators:
-  enabled: false
+  enabled: true
   list:
-    - validator-1
-    - validator-2
-    - validator-3
-    - validator-4
+    - name: validator-1
+      enabled: true
+    - name: validator-2
+      enabled: true
+    - name: validator-3
+      enabled: true
+    - name: validator-4
+      enabled: true
+      relay: true
 
 services:
   - name: geth-jsonrpc
@@ -47,7 +52,7 @@ edge:
     repository: 0xpolygon/polygon-edge
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "1.3.0"
+    tag: "1.0.0"
 
   localStoragePath: "/polygon-edge"
   #localStoragePath: "/Users/egorcole/work/projects/pocs/supernets/volumes"
@@ -67,11 +72,11 @@ edge:
 
   podAnnotations: {}
 
-  podSecurityContext:
-     runAsUser: 100
-     runAsGroup: 101
-     fsGroup: 101
-     fsGroupChangePolicy: "Always"
+  podSecurityContext: {}
+#     runAsUser: 100
+#     runAsGroup: 101
+#     fsGroup: 101
+#     fsGroupChangePolicy: "Always"
 
   securityContext: {}
     # capabilities:

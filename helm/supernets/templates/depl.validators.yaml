@@ -1,18 +1,18 @@
-{{- if .Values.validators.enabled }}
 {{- range $idx, $val := $.Values.validators.list }}
+{{- if $val.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $val }}
+  name: {{ $val.name }}
   labels:
-    app: {{ $val }}
+    app: {{ $val.name }}
 spec:
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: {{ $val }}
+      app: {{ $val.name }}
   template:
     metadata:
       {{- with $.Values.edge.podAnnotations }}
@@ -20,7 +20,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ $val }}
+        app: {{ $val.name }}
     spec:
       {{- with $.Values.edge.imagePullSecrets }}
       imagePullSecrets:
@@ -30,7 +30,7 @@ spec:
         {{- toYaml $.Values.edge.podSecurityContext | nindent 8 }}
 
       containers:
-        - name: validator-{{ .}}
+        - name: {{ $val.name }}
           securityContext:
             {{- toYaml $.Values.edge.securityContext | nindent 12 }}
           image: "{{ $.Values.edge.image.repository }}:{{ $.Values.edge.image.tag | default $.Chart.AppVersion }}"
@@ -52,7 +52,7 @@ spec:
               polygon-edge server \
                 --data-dir {{ $.Values.edge.data }}/test-chain-{{ add $idx 1 }} \
                 --chain {{ $.Values.edge.data }}/genesis.json \
-                --grpc-address 0.0.0.0:10000 \
+                --grpc-address 0.0.0.0:10000 {{ ternary "--relayer" "" (eq $val.relay true)}} \
                 --libp2p 0.0.0.0:30303 --jsonrpc 0.0.0.0:10002 --seal --log-level DEBUG
 
       volumes:
